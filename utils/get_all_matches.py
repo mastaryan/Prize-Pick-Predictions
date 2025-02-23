@@ -1,11 +1,13 @@
 import requests
 import json
 
-def fetch_and_save_data(page_number, current_season_year):
-    url = f"https://www.balldontlie.io/api/v1/games?seasons[]={current_season_year}&per_page=100&page={page_number}"
+def fetch_and_save_data(page_number, current_season_year, headers=None):
+    if headers is None:
+        headers = {}
+    url = f"https://api.balldontlie.io/v1/games?seasons[]={current_season_year}&per_page=100&page={page_number}"
     
     try:
-        response = requests.get(url)
+        response = requests.get(url, headers=headers)
         response.raise_for_status()  # Raise an HTTPError for bad responses
 
         result = response.json()
@@ -20,15 +22,14 @@ def fetch_and_save_data(page_number, current_season_year):
 def sort_data_by_date(data):
     return sorted(data, key=lambda x: x.get("date", ""))
 
-def get_all_matches(write_file, current_season_year):
-
+def get_all_matches(write_file, current_season_year, headers=None):
     # Combine data from all pages into a single list
     all_data = []
     current_page = 1
 
     # Fetch data until there's no "next_page"
     while True:
-        page_data, next_page = fetch_and_save_data(current_page, current_season_year)
+        page_data, next_page = fetch_and_save_data(current_page, current_season_year, headers=headers)
         
         if not page_data:
             break
@@ -46,7 +47,7 @@ def get_all_matches(write_file, current_season_year):
     # Sort the final data by date
     sorted_final_data = sort_data_by_date(final_data)
 
-    # Save sorted data to a single file named test.json
+    # Save sorted data to a single file
     with open(write_file, "w") as json_file:
         json.dump(sorted_final_data, json_file, indent=2)
 
