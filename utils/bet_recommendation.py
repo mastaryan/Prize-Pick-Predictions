@@ -5,13 +5,17 @@
 
 def predict(line_score, avg_value, n_a):
     try:
-        if line_score >= avg_value:
+        # Convert inputs to float if they aren’t "--"
+        ls = float(line_score) if line_score != n_a else None
+        av = float(avg_value) if avg_value != n_a else None
+
+        if ls is None or av is None:
+            return n_a
+
+        if ls >= av:
             prediction = "Lower"
-            color = ""
         else:
             prediction = "Higher"
-            color = ""
-    except Exception as e:
-        prediction = n_a
-
-    return prediction
+        return prediction
+    except (ValueError, TypeError):
+        return n_a
