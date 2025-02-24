@@ -31,7 +31,7 @@ api_key = os.getenv("BALL_DONT_LIE_API_KEY")
 headers = {"Authorization": api_key} if api_key else {}
 
 try:
-    get_all_matches(season_matches_json, current_season_year, headers=headers)  # Added headers
+    get_all_matches(season_matches_json, current_season_year, headers=headers)
     print(f"[🟢] Successfully fetched matches for {current_season_year} season.")
 except Exception as e:
     print(f"[🔴] Failed to fetch matches: {e}. Proceeding with existing data.")
@@ -51,12 +51,19 @@ try:
     with open(pre_json, 'w', encoding='utf-8') as json_file:
         json.dump(json_data, json_file, indent=2)
     print(f"[🟢] Successfully pulled and saved PrizePicks data to {pre_json}")
+    print(f"Number of projections: {len(json_data.get('data', []))}")
+    if json_data.get('included'):
+        print(f"Sample player attributes: {json_data['included'][0].get('attributes', {})}")
 except requests.exceptions.RequestException as e:
     print(f"[🔴] Error fetching PrizePicks data: {e}")
+    json_data = {}
 
 try:
     data = parse_json_file(pre_json, post_json) or {}
-    print(f"[🟢] Successfully parsed JSON data.")
+    print(f"[🟢] Successfully parsed JSON data. Number of players: {len(data)}")
+    if data:
+        sample_player_id = list(data.keys())[0]
+        print(f"Sample player data: {data[sample_player_id]}")
 except Exception as e:
     print(f"[🔴] Error parsing JSON: {e}. Using empty data.")
     data = {}
@@ -78,7 +85,7 @@ for idx, key in enumerate(data):
     name = data[key]['name']
     team_name = data[key]['attributes']['team_name']
     team_city_state = data[key]['attributes']['market']
-    photo_link = data[key]['attributes']['image_url']
+    photo_link = data[key]['attributes'].get('image_url', n_a)  # Use .get() for safety
     player_position = data[key]['attributes']['position']
 
     points = rebounds = assists = turnovers = points_assists = points_rebounds = points_rebounds_assists = n_a
@@ -111,9 +118,13 @@ for idx, key in enumerate(data):
         num_attempts = i
         try:
             stats = get_player_stats(player_name, current_season_year)
-            stats = list(stats) + [n_a] * (10 - len(stats))  # Pad with n_a
-            fp_player_stats, fp_player_id, fp_team_name, fp_points, fp_rebounds, fp_assists, fp_ftm, fp_points_rebounds, fp_points_assists, fp_points_rebounds_assists = stats[:10]
-            break
+            if stats:
+                print(f"[🟢] Fetched stats for {player_name}")
+                stats = list(stats) + [n_a] * (10 - len(stats))  # Pad with n_a
+                fp_player_stats, fp_player_id, fp_team_name, fp_points, fp_rebounds, fp_assists, fp_ftm, fp_points_rebounds, fp_points_assists, fp_points_rebounds_assists = stats[:10]
+                break
+            else:
+                print(f"[🟡] No stats found for {player_name}")
         except Exception as e:
             if i < max_attempts - 1:
                 print(f"[🟡] Failed to load {player_name}, attempt {num_attempts}/{max_attempts-1}: {e}")
@@ -173,6 +184,13 @@ for idx, key in enumerate(data):
 
     time.sleep(1.25)
 
+print(f"Points data: {len(points_data)} entries")
+print(f"Assists data: {len(assists_data)} entries")
+print(f"Rebounds data: {len(rebounds_data)} entries")
+print(f"Points + Assists data: {len(points_assists_data)} entries")
+print(f"Points + Rebounds data: {len(points_rebounds_data)} entries")
+print(f"Points + Rebounds + Assists data: {len(points_assists_rebounds_data)} entries")
+
 num_na_stats = sum(1 for row in table if n_a in row)
 print(f"\n{num_na_stats} players have at least one missing stat.")
 print(f"A total of {num_players} player objects in json file.")
@@ -190,25 +208,31 @@ def index():
         if data_source == 'points':
             with open('json files/points.json') as f:
                 data = json.load(f)
+            print(f"Loaded {len(data)} points entries for Flask")
         elif data_source == 'rebounds':
             with open('json files/rebounds.json') as f:
                 data = json.load(f)
+            print(f"Loaded {len(data)} rebounds entries for Flask")
         elif data_source == 'assists':
             with open('json files/assists.json') as f:
                 data = json.load(f)
+            print(f"Loaded {len(data)} assists entries for Flask")
         elif data_source == 'pts_asts':
             with open('json files/points_assists.json') as f:
                 data = json.load(f)
+            print(f"Loaded {len(data)} pts+asts entries for Flask")
         elif data_source == 'pts_rebs':
             with open('json files/points_rebounds.json') as f:
                 data = json.load(f)
+            print(f"Loaded {len(data)} pts+rebs entries for Flask")
         elif data_source == 'pts_rebs_asts':
             with open('json files/points_assists_rebounds.json') as f:
                 data = json.load(f)
+            print(f"Loaded {len(data)} pts+rebs+asts entries for Flask")
     except Exception as e:
         print(f"[🔴] Error loading Flask data: {e}")
         data = []
     return render_template('index.html', data=data)
 
 if __name__ == '__main__':
-    app.run(debug=True)  # Enable debug mode for better error reporting
+    app.run(debug=True)
