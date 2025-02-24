@@ -119,7 +119,7 @@ for idx, key in enumerate(data):
         try:
             stats = get_player_stats(player_name, current_season_year)
             if stats:
-                print(f"[🟢] Fetched stats for {player_name}")
+                print(f"[🟢] Fetched stats for {player_name}: {stats}")
                 stats = list(stats) + [n_a] * (10 - len(stats))  # Pad with n_a
                 fp_player_stats, fp_player_id, fp_team_name, fp_points, fp_rebounds, fp_assists, fp_ftm, fp_points_rebounds, fp_points_assists, fp_points_rebounds_assists = stats[:10]
                 break
@@ -132,6 +132,14 @@ for idx, key in enumerate(data):
             else:
                 print(f"[🔴] Final attempt failed for {player_name}: {e}")
 
+    # Debug: Print input values for predict function
+    print(f"Debug - Player: {player_name}, Points: {points}, FP Points: {fp_points}")
+    print(f"Debug - Player: {player_name}, Rebounds: {rebounds}, FP Rebounds: {fp_rebounds}")
+    print(f"Debug - Player: {player_name}, Assists: {assists}, FP Assists: {fp_assists}")
+    print(f"Debug - Player: {player_name}, Points+Assists: {points_assists}, FP Points+Assists: {fp_points + fp_assists if fp_points != n_a and fp_assists != n_a else n_a}")
+    print(f"Debug - Player: {player_name}, Points+Rebounds: {points_rebounds}, FP Points+Rebounds: {fp_points + fp_rebounds if fp_points != n_a and fp_rebounds != n_a else n_a}")
+    print(f"Debug - Player: {player_name}, Points+Rebounds+Assists: {points_rebounds_assists}, FP Points+Rebounds+Assists: {fp_points + fp_assists + fp_rebounds if fp_points != n_a and fp_assists != n_a and fp_rebounds != n_a else n_a}")
+
     # Process data even if stats are partial
     recommendation_pts = predict(points, fp_points, n_a)
     recommendation_reb = predict(rebounds, fp_rebounds, n_a)
@@ -139,6 +147,12 @@ for idx, key in enumerate(data):
     recommendation_pts_ast = predict(points_assists, fp_points + fp_assists if fp_points != n_a and fp_assists != n_a else n_a, n_a)
     recommendation_pts_reb = predict(points_rebounds, fp_points + fp_rebounds if fp_points != n_a and fp_rebounds != n_a else n_a, n_a)
     recommendation_pts_ast_reb = predict(points_rebounds_assists, fp_points + fp_assists + fp_rebounds if fp_points != n_a and fp_assists != n_a and fp_rebounds != n_a else n_a, n_a)
+
+    # Debug: Print recommendations
+    print(f"Debug - Recommendations for {player_name}: "
+          f"Points={recommendation_pts}, Rebounds={recommendation_reb}, Assists={recommendation_ast}, "
+          f"Points+Assists={recommendation_pts_ast}, Points+Rebounds={recommendation_pts_reb}, "
+          f"Points+Rebounds+Assists={recommendation_pts_ast_reb}")
 
     table.append(
         [idx + 1, name, team_name, points, fp_points, recommendation_pts, rebounds, fp_rebounds,
@@ -152,17 +166,18 @@ for idx, key in enumerate(data):
     diff_pts_reb = round(abs((float(fp_points) + float(fp_rebounds)) - float(points_rebounds)), 5) if points_rebounds != n_a and fp_points != n_a and fp_rebounds != n_a else n_a
     diff_pts_ast_reb = round(abs((float(fp_points) + float(fp_assists) + float(fp_rebounds)) - float(points_rebounds_assists)), 5) if points_rebounds_assists != n_a and fp_points != n_a and fp_assists != n_a and fp_rebounds != n_a else n_a
 
-    if recommendation_pts != n_a:
+    # Add data even if recommendation is n_a, for debugging
+    if points != n_a or fp_points != n_a:
         points_data.append({player_name: {"general": {"player_id": fp_player_id, "team_name": team_name, "team_market": team_city_state, "picture_link": photo_link, "player_position": player_position}, "stats": {"type": "points", "strike_value": points, "predicted_value": fp_points, "bet_recommendation": recommendation_pts, "difference": diff_pts}}})
-    if recommendation_ast != n_a:
+    if assists != n_a or fp_assists != n_a:
         assists_data.append({player_name: {"general": {"player_id": fp_player_id, "team_name": team_name, "team_market": team_city_state, "picture_link": photo_link, "player_position": player_position}, "stats": {"type": "assists", "strike_value": assists, "predicted_value": fp_assists, "bet_recommendation": recommendation_ast, "difference": diff_assists}}})
-    if recommendation_reb != n_a:
+    if rebounds != n_a or fp_rebounds != n_a:
         rebounds_data.append({player_name: {"general": {"player_id": fp_player_id, "team_name": team_name, "team_market": team_city_state, "picture_link": photo_link, "player_position": player_position}, "stats": {"type": "rebounds", "strike_value": rebounds, "predicted_value": fp_rebounds, "bet_recommendation": recommendation_reb, "difference": diff_reb}}})
-    if recommendation_pts_ast != n_a:
+    if points_assists != n_a or (fp_points != n_a and fp_assists != n_a):
         points_assists_data.append({player_name: {"general": {"player_id": fp_player_id, "team_name": team_name, "team_market": team_city_state, "picture_link": photo_link, "player_position": player_position}, "stats": {"type": "pts+ast", "strike_value": points_assists, "predicted_value": fp_points + fp_assists if fp_points != n_a and fp_assists != n_a else n_a, "bet_recommendation": recommendation_pts_ast, "difference": diff_pts_ast}}})
-    if recommendation_pts_reb != n_a:
+    if points_rebounds != n_a or (fp_points != n_a and fp_rebounds != n_a):
         points_rebounds_data.append({player_name: {"general": {"player_id": fp_player_id, "team_name": team_name, "team_market": team_city_state, "picture_link": photo_link, "player_position": player_position}, "stats": {"type": "pts+rebs", "strike_value": points_rebounds, "predicted_value": fp_points + fp_rebounds if fp_points != n_a and fp_rebounds != n_a else n_a, "bet_recommendation": recommendation_pts_reb, "difference": diff_pts_reb}}})
-    if recommendation_pts_ast_reb != n_a:
+    if points_rebounds_assists != n_a or (fp_points != n_a and fp_assists != n_a and fp_rebounds != n_a):
         points_assists_rebounds_data.append({player_name: {"general": {"player_id": fp_player_id, "team_name": team_name, "team_market": team_city_state, "picture_link": photo_link, "player_position": player_position}, "stats": {"type": "pts+rebs+asts", "strike_value": points_rebounds_assists, "predicted_value": fp_points + fp_assists + fp_rebounds if fp_points != n_a and fp_assists != n_a and fp_rebounds != n_a else n_a, "bet_recommendation": recommendation_pts_ast_reb, "difference": diff_pts_ast_reb}}})
 
     with open(points_json, 'w') as f_points:
@@ -208,27 +223,27 @@ def index():
         if data_source == 'points':
             with open('json files/points.json') as f:
                 data = json.load(f)
-            print(f"Loaded {len(data)} points entries for Flask")
+            print(f"Loaded {len(data)} points entries for Flask. Sample: {data[0] if data else 'None'}")
         elif data_source == 'rebounds':
             with open('json files/rebounds.json') as f:
                 data = json.load(f)
-            print(f"Loaded {len(data)} rebounds entries for Flask")
+            print(f"Loaded {len(data)} rebounds entries for Flask. Sample: {data[0] if data else 'None'}")
         elif data_source == 'assists':
             with open('json files/assists.json') as f:
                 data = json.load(f)
-            print(f"Loaded {len(data)} assists entries for Flask")
+            print(f"Loaded {len(data)} assists entries for Flask. Sample: {data[0] if data else 'None'}")
         elif data_source == 'pts_asts':
             with open('json files/points_assists.json') as f:
                 data = json.load(f)
-            print(f"Loaded {len(data)} pts+asts entries for Flask")
+            print(f"Loaded {len(data)} pts+asts entries for Flask. Sample: {data[0] if data else 'None'}")
         elif data_source == 'pts_rebs':
             with open('json files/points_rebounds.json') as f:
                 data = json.load(f)
-            print(f"Loaded {len(data)} pts+rebs entries for Flask")
+            print(f"Loaded {len(data)} pts+rebs entries for Flask. Sample: {data[0] if data else 'None'}")
         elif data_source == 'pts_rebs_asts':
             with open('json files/points_assists_rebounds.json') as f:
                 data = json.load(f)
-            print(f"Loaded {len(data)} pts+rebs+asts entries for Flask")
+            print(f"Loaded {len(data)} pts+rebs+asts entries for Flask. Sample: {data[0] if data else 'None'}")
     except Exception as e:
         print(f"[🔴] Error loading Flask data: {e}")
         data = []
