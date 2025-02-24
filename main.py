@@ -118,13 +118,11 @@ for idx, key in enumerate(data):
         num_attempts = i
         try:
             stats = get_player_stats(player_name, current_season_year)
-            if stats:
+            if stats and isinstance(stats, tuple) and len(stats) >= 10:
                 print(f"[🟢] Fetched stats for {player_name}: {stats}")
-                stats = list(stats) + [n_a] * (10 - len(stats))  # Pad with n_a
-                fp_player_stats, fp_player_id, fp_team_name, fp_points, fp_rebounds, fp_assists, fp_ftm, fp_points_rebounds, fp_points_assists, fp_points_rebounds_assists = stats[:10]
-                break
+                fp_player_stats, fp_player_id, fp_team_name, fp_points, fp_rebounds, fp_assists, fp_ftm, fp_points_rebounds, fp_points_assists, fp_points_rebounds_assists = stats
             else:
-                print(f"[🟡] No stats found for {player_name}")
+                print(f"[🟡] No valid stats found for {player_name}")
         except Exception as e:
             if i < max_attempts - 1:
                 print(f"[🟡] Failed to load {player_name}, attempt {num_attempts}/{max_attempts-1}: {e}")
@@ -140,13 +138,13 @@ for idx, key in enumerate(data):
     print(f"Debug - Player: {player_name}, Points+Rebounds: {points_rebounds}, FP Points+Rebounds: {fp_points + fp_rebounds if fp_points != n_a and fp_rebounds != n_a else n_a}")
     print(f"Debug - Player: {player_name}, Points+Rebounds+Assists: {points_rebounds_assists}, FP Points+Rebounds+Assists: {fp_points + fp_assists + fp_rebounds if fp_points != n_a and fp_assists != n_a and fp_rebounds != n_a else n_a}")
 
-    # Process data even if stats are partial
-    recommendation_pts = predict(points, fp_points, n_a)
-    recommendation_reb = predict(rebounds, fp_rebounds, n_a)
-    recommendation_ast = predict(assists, fp_assists, n_a)
-    recommendation_pts_ast = predict(points_assists, fp_points + fp_assists if fp_points != n_a and fp_assists != n_a else n_a, n_a)
-    recommendation_pts_reb = predict(points_rebounds, fp_points + fp_rebounds if fp_points != n_a and fp_rebounds != n_a else n_a, n_a)
-    recommendation_pts_ast_reb = predict(points_rebounds_assists, fp_points + fp_assists + fp_rebounds if fp_points != n_a and fp_assists != n_a and fp_rebounds != n_a else n_a, n_a)
+    # Process data even if stats are partial, ensuring numeric handling
+    recommendation_pts = predict(points, fp_points, n_a) if points != n_a or fp_points != n_a else n_a
+    recommendation_reb = predict(rebounds, fp_rebounds, n_a) if rebounds != n_a or fp_rebounds != n_a else n_a
+    recommendation_ast = predict(assists, fp_assists, n_a) if assists != n_a or fp_assists != n_a else n_a
+    recommendation_pts_ast = predict(points_assists, fp_points + fp_assists if fp_points != n_a and fp_assists != n_a else n_a, n_a) if points_assists != n_a or (fp_points != n_a and fp_assists != n_a) else n_a
+    recommendation_pts_reb = predict(points_rebounds, fp_points + fp_rebounds if fp_points != n_a and fp_rebounds != n_a else n_a, n_a) if points_rebounds != n_a or (fp_points != n_a and fp_rebounds != n_a) else n_a
+    recommendation_pts_ast_reb = predict(points_rebounds_assists, fp_points + fp_assists + fp_rebounds if fp_points != n_a and fp_assists != n_a and fp_rebounds != n_a else n_a, n_a) if points_rebounds_assists != n_a or (fp_points != n_a and fp_assists != n_a and fp_rebounds != n_a) else n_a
 
     # Debug: Print recommendations
     print(f"Debug - Recommendations for {player_name}: "
@@ -159,26 +157,26 @@ for idx, key in enumerate(data):
          recommendation_reb, assists, fp_assists, recommendation_ast, points_assists,
          points_rebounds, points_rebounds_assists])
 
-    diff_pts = round(abs(float(fp_points) - float(points)), 5) if points != n_a and fp_points != n_a else n_a
-    diff_reb = round(abs(float(fp_rebounds) - float(rebounds)), 5) if rebounds != n_a and fp_rebounds != n_a else n_a
-    diff_assists = round(abs(float(fp_assists) - float(assists)), 5) if assists != n_a and fp_assists != n_a else n_a
-    diff_pts_ast = round(abs((float(fp_points) + float(fp_assists)) - float(points_assists)), 5) if points_assists != n_a and fp_points != n_a and fp_assists != n_a else n_a
-    diff_pts_reb = round(abs((float(fp_points) + float(fp_rebounds)) - float(points_rebounds)), 5) if points_rebounds != n_a and fp_points != n_a and fp_rebounds != n_a else n_a
-    diff_pts_ast_reb = round(abs((float(fp_points) + float(fp_assists) + float(fp_rebounds)) - float(points_rebounds_assists)), 5) if points_rebounds_assists != n_a and fp_points != n_a and fp_assists != n_a and fp_rebounds != n_a else n_a
+    diff_pts = round(abs(float(str(fp_points).strip()) - float(str(points).strip())), 5) if points != n_a and fp_points != n_a else n_a
+    diff_reb = round(abs(float(str(fp_rebounds).strip()) - float(str(rebounds).strip())), 5) if rebounds != n_a and fp_rebounds != n_a else n_a
+    diff_assists = round(abs(float(str(fp_assists).strip()) - float(str(assists).strip())), 5) if assists != n_a and fp_assists != n_a else n_a
+    diff_pts_ast = round(abs((float(str(fp_points).strip()) + float(str(fp_assists).strip())) - float(str(points_assists).strip())), 5) if points_assists != n_a and fp_points != n_a and fp_assists != n_a else n_a
+    diff_pts_reb = round(abs((float(str(fp_points).strip()) + float(str(fp_rebounds).strip())) - float(str(points_rebounds).strip())), 5) if points_rebounds != n_a and fp_points != n_a and fp_rebounds != n_a else n_a
+    diff_pts_ast_reb = round(abs((float(str(fp_points).strip()) + float(str(fp_assists).strip()) + float(str(fp_rebounds).strip())) - float(str(points_rebounds_assists).strip())), 5) if points_rebounds_assists != n_a and fp_points != n_a and fp_assists != n_a and fp_rebounds != n_a else n_a
 
-    # Add data even if recommendation is n_a, for debugging
-    if points != n_a or fp_points != n_a:
-        points_data.append({player_name: {"general": {"player_id": fp_player_id, "team_name": team_name, "team_market": team_city_state, "picture_link": photo_link, "player_position": player_position}, "stats": {"type": "points", "strike_value": points, "predicted_value": fp_points, "bet_recommendation": recommendation_pts, "difference": diff_pts}}})
-    if assists != n_a or fp_assists != n_a:
-        assists_data.append({player_name: {"general": {"player_id": fp_player_id, "team_name": team_name, "team_market": team_city_state, "picture_link": photo_link, "player_position": player_position}, "stats": {"type": "assists", "strike_value": assists, "predicted_value": fp_assists, "bet_recommendation": recommendation_ast, "difference": diff_assists}}})
-    if rebounds != n_a or fp_rebounds != n_a:
-        rebounds_data.append({player_name: {"general": {"player_id": fp_player_id, "team_name": team_name, "team_market": team_city_state, "picture_link": photo_link, "player_position": player_position}, "stats": {"type": "rebounds", "strike_value": rebounds, "predicted_value": fp_rebounds, "bet_recommendation": recommendation_reb, "difference": diff_reb}}})
-    if points_assists != n_a or (fp_points != n_a and fp_assists != n_a):
-        points_assists_data.append({player_name: {"general": {"player_id": fp_player_id, "team_name": team_name, "team_market": team_city_state, "picture_link": photo_link, "player_position": player_position}, "stats": {"type": "pts+ast", "strike_value": points_assists, "predicted_value": fp_points + fp_assists if fp_points != n_a and fp_assists != n_a else n_a, "bet_recommendation": recommendation_pts_ast, "difference": diff_pts_ast}}})
-    if points_rebounds != n_a or (fp_points != n_a and fp_rebounds != n_a):
-        points_rebounds_data.append({player_name: {"general": {"player_id": fp_player_id, "team_name": team_name, "team_market": team_city_state, "picture_link": photo_link, "player_position": player_position}, "stats": {"type": "pts+rebs", "strike_value": points_rebounds, "predicted_value": fp_points + fp_rebounds if fp_points != n_a and fp_rebounds != n_a else n_a, "bet_recommendation": recommendation_pts_reb, "difference": diff_pts_reb}}})
-    if points_rebounds_assists != n_a or (fp_points != n_a and fp_assists != n_a and fp_rebounds != n_a):
-        points_assists_rebounds_data.append({player_name: {"general": {"player_id": fp_player_id, "team_name": team_name, "team_market": team_city_state, "picture_link": photo_link, "player_position": player_position}, "stats": {"type": "pts+rebs+asts", "strike_value": points_rebounds_assists, "predicted_value": fp_points + fp_assists + fp_rebounds if fp_points != n_a and fp_assists != n_a and fp_rebounds != n_a else n_a, "bet_recommendation": recommendation_pts_ast_reb, "difference": diff_pts_ast_reb}}})
+    # Add data even if recommendation is n_a, for debugging, and ensure at least one stat is present
+    if points != n_a or (fp_points != n_a and isinstance(fp_points, (int, float, str)) and str(fp_points).strip()):
+        points_data.append({player_name: {"general": {"player_id": fp_player_id if fp_player_id != n_a else "N/A", "team_name": team_name, "team_market": team_city_state, "picture_link": photo_link, "player_position": player_position}, "stats": {"type": "points", "strike_value": points, "predicted_value": fp_points, "bet_recommendation": recommendation_pts, "difference": diff_pts}}})
+    if assists != n_a or (fp_assists != n_a and isinstance(fp_assists, (int, float, str)) and str(fp_assists).strip()):
+        assists_data.append({player_name: {"general": {"player_id": fp_player_id if fp_player_id != n_a else "N/A", "team_name": team_name, "team_market": team_city_state, "picture_link": photo_link, "player_position": player_position}, "stats": {"type": "assists", "strike_value": assists, "predicted_value": fp_assists, "bet_recommendation": recommendation_ast, "difference": diff_assists}}})
+    if rebounds != n_a or (fp_rebounds != n_a and isinstance(fp_rebounds, (int, float, str)) and str(fp_rebounds).strip()):
+        rebounds_data.append({player_name: {"general": {"player_id": fp_player_id if fp_player_id != n_a else "N/A", "team_name": team_name, "team_market": team_city_state, "picture_link": photo_link, "player_position": player_position}, "stats": {"type": "rebounds", "strike_value": rebounds, "predicted_value": fp_rebounds, "bet_recommendation": recommendation_reb, "difference": diff_reb}}})
+    if points_assists != n_a or (fp_points != n_a and fp_assists != n_a and isinstance(fp_points, (int, float, str)) and isinstance(fp_assists, (int, float, str)) and str(fp_points).strip() and str(fp_assists).strip()):
+        points_assists_data.append({player_name: {"general": {"player_id": fp_player_id if fp_player_id != n_a else "N/A", "team_name": team_name, "team_market": team_city_state, "picture_link": photo_link, "player_position": player_position}, "stats": {"type": "pts+ast", "strike_value": points_assists, "predicted_value": fp_points + fp_assists if fp_points != n_a and fp_assists != n_a else n_a, "bet_recommendation": recommendation_pts_ast, "difference": diff_pts_ast}}})
+    if points_rebounds != n_a or (fp_points != n_a and fp_rebounds != n_a and isinstance(fp_points, (int, float, str)) and isinstance(fp_rebounds, (int, float, str)) and str(fp_points).strip() and str(fp_rebounds).strip()):
+        points_rebounds_data.append({player_name: {"general": {"player_id": fp_player_id if fp_player_id != n_a else "N/A", "team_name": team_name, "team_market": team_city_state, "picture_link": photo_link, "player_position": player_position}, "stats": {"type": "pts+rebs", "strike_value": points_rebounds, "predicted_value": fp_points + fp_rebounds if fp_points != n_a and fp_rebounds != n_a else n_a, "bet_recommendation": recommendation_pts_reb, "difference": diff_pts_reb}}})
+    if points_rebounds_assists != n_a or (fp_points != n_a and fp_assists != n_a and fp_rebounds != n_a and isinstance(fp_points, (int, float, str)) and isinstance(fp_assists, (int, float, str)) and isinstance(fp_rebounds, (int, float, str)) and str(fp_points).strip() and str(fp_assists).strip() and str(fp_rebounds).strip()):
+        points_assists_rebounds_data.append({player_name: {"general": {"player_id": fp_player_id if fp_player_id != n_a else "N/A", "team_name": team_name, "team_market": team_city_state, "picture_link": photo_link, "player_position": player_position}, "stats": {"type": "pts+rebs+asts", "strike_value": points_rebounds_assists, "predicted_value": fp_points + fp_assists + fp_rebounds if fp_points != n_a and fp_assists != n_a and fp_rebounds != n_a else n_a, "bet_recommendation": recommendation_pts_ast_reb, "difference": diff_pts_ast_reb}}})
 
     with open(points_json, 'w') as f_points:
         json.dump(points_data, f_points, indent=2)

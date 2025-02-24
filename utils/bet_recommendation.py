@@ -5,9 +5,9 @@
 
 def predict(line_score, avg_value, n_a):
     try:
-        # Convert inputs to float if they aren’t "--", handle empty strings or None
-        ls = float(line_score) if line_score and line_score != n_a and line_score.strip() else None
-        av = float(avg_value) if avg_value and avg_value != n_a and avg_value.strip() else None
+        # Convert inputs to float if they are numeric or strings, handle n_a ("--")
+        ls = float(str(line_score).strip()) if line_score and line_score != n_a else None
+        av = float(str(avg_value).strip()) if avg_value and avg_value != n_a else None
 
         if ls is None or av is None:
             print(f"Debug - Predict returning n_a: line_score={line_score}, avg_value={avg_value}")
